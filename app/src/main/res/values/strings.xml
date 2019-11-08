@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">App連接MySQL範例</string>
+
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">設定</string>
+    <string name="title_activity_edit">編輯</string>
+</resources>
