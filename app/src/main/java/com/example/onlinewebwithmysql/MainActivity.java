@@ -15,6 +15,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
+import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -39,9 +41,9 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         adapter = new ContactAdapter(new ArrayList<Contact>(), this);
-        contactlist = (ListView) findViewById(R.id.listview);
+        contactlist = findViewById(R.id.listview);
         contactlist.setAdapter(adapter);
-        (new ConnectMysql()).execute("http://hci.macroviz.com/demo/android/list_contacts.php");
+        (new ConnectMysql()).execute("https://mysqlcontact.000webhostapp.com/list_contacts.php");
         contactlist.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
@@ -57,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
     private class ConnectMysql extends AsyncTask<String, Void, List<Contact>> {
+
         private final ProgressDialog dialog = new ProgressDialog(MainActivity.this);
         @Override
         protected List<Contact> doInBackground(String... params) {
@@ -103,9 +106,9 @@ public class MainActivity extends AppCompatActivity {
         private Contact convertContact(JSONObject obj) throws JSONException {
             Bitmap bitmap;
             if(obj.getString("Picture") != null) {
-                bitmap = LoadImage("http://hci.macroviz.com/demo/android/images/" + obj.getString("Picture").toString());
+                bitmap = LoadImage("https://mysqlcontact.000webhostapp.com/upload/" + obj.getString("Picture").toString());
             }else{
-                bitmap = LoadImage("http://hci.macroviz.com/demo/android/images/supportmale.png");
+                bitmap = LoadImage("https://mysqlcontact.000webhostapp.com/upload/supportmale.png");
             }
             String name = obj.getString("Name");
             String phoneNum = obj.getString("Phone");
@@ -118,6 +121,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
+
             dialog.setMessage("資料下載中...");
             dialog.show();
         }

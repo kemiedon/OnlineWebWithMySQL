@@ -70,12 +70,11 @@ public class EditActivity extends AppCompatActivity implements View.OnClickListe
         btnSelect = findViewById(R.id.btnSelect);
         initView();
         bData = this.getIntent().getExtras();
-
         type = bData.getString("type");
         if(type.equals("edit")){
             queryName = bData.getString("name");
             isEdit = true;
-            (new ConnectMysql()).execute("http://hci.macroviz.com/demo/android/query.php");
+            (new ConnectMysql()).execute("https://mysqlcontact.000webhostapp.com/query.php");
         }
     }
     private void initView(){
@@ -112,7 +111,7 @@ public class EditActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.action_delete:
 
-                (new ConnectMysql()).execute("http://hci.macroviz.com/demo/android/delete.php");
+                (new ConnectMysql()).execute("https://mysqlcontact.000webhostapp.com/delete.php");
 
                 break;
         }
@@ -133,10 +132,10 @@ public class EditActivity extends AppCompatActivity implements View.OnClickListe
                 newBirth = editBirth.getText().toString();
                 isEdit = false;
                 if(type.equals("new")){
-                    (new ConnectMysql()).execute("http://hci.macroviz.com/demo/android/insert.php");
+                    (new ConnectMysql()).execute("https://mysqlcontact.000webhostapp.com/insert2.php");
                 }else{
                     Log.i("edit=","start edit");
-                    (new ConnectMysql()).execute("http://hci.macroviz.com/demo/android/update.php");
+                    (new ConnectMysql()).execute("https://mysqlcontact.000webhostapp.com/update.php");
                 }
                 break;
             case R.id.btnSelect:
@@ -145,24 +144,27 @@ public class EditActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
     public void selectImageFromGallery() {
-        if (Build.VERSION.SDK_INT <19) {
-            Intent intent = new Intent();
-            intent.setType("image/*");
-            intent.setAction(Intent.ACTION_GET_CONTENT);
-            startActivityForResult(Intent.createChooser(intent, "請選擇圖片"), PICK_IMAGE);
-        }else{
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType("image/*");
-            startActivityForResult(intent, PICK_IMAGE);
-        }
+            if (Build.VERSION.SDK_INT <19) {
+                Intent intent = new Intent();
+                intent.setType("image/*");
+                intent.setAction(Intent.ACTION_GET_CONTENT);
+                startActivityForResult(Intent.createChooser(intent, "請選擇圖片"), PICK_IMAGE);
+            }else{
+                Log.v("test","abc");
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("image/*");
+                startActivityForResult(intent, PICK_IMAGE);
+            }
+
     }
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
         if (resultCode != Activity.RESULT_OK) return;
 
-        if (requestCode == PICK_IMAGE && resultCode == RESULT_OK && null != data) {
+        if (resultCode == Activity.RESULT_OK && data != null) {
 
             selectedImage = data.getData();
             image.setImageURI(selectedImage);
@@ -171,7 +173,7 @@ public class EditActivity extends AppCompatActivity implements View.OnClickListe
             final String imageOrderBy = null;
             if (Build.VERSION.SDK_INT >= 23) {
                 int REQUEST_CODE_IMAGE = 101;
-                String[] permissions = {Manifest.permission.WRITE_EXTERNAL_STORAGE};
+                String[] permissions = {Manifest.permission.READ_EXTERNAL_STORAGE};
                 //验证是否许可权限
                 for (String str : permissions) {
                     if (this.checkSelfPermission(str) != PackageManager.PERMISSION_GRANTED) {
@@ -183,13 +185,15 @@ public class EditActivity extends AppCompatActivity implements View.OnClickListe
             }
             Uri uri = getUri();
             picturePath = "path";
+
             Cursor imageCursor = getContentResolver().query(uri, imageColumns,
-                    MediaStore.Images.Media._ID + "="+id, null, imageOrderBy);
+                    MediaStore.Images.Media._ID + "="+id, null, null);
 
             if (imageCursor.moveToFirst()) {
+
                 picturePath = imageCursor.getString(imageCursor.getColumnIndex(MediaStore.Images.Media.DATA));
             }
-            Log.i("picturePath=",picturePath);
+            Log.v("picturePath=",picturePath);
         }
     }
     private Uri getUri() {
@@ -210,9 +214,7 @@ public class EditActivity extends AppCompatActivity implements View.OnClickListe
         protected String doInBackground(String... params) {
             int result = 0;
             URL u = null;
-            int bytesRead, bytesAvailable, bufferSize;
-            byte[] buffer;
-            int maxBufferSize = 1 * 1024 * 1024;
+
             try {
                 u = new URL(params[0]);
                 HttpURLConnection conn = (HttpURLConnection) u.openConnection();
@@ -220,120 +222,10 @@ public class EditActivity extends AppCompatActivity implements View.OnClickListe
                 conn.setDoInput(true);
                 conn.setDoOutput(true);
 
-
                 if(isEdit){
-                    String data = "Name=" + URLEncoder.encode(queryName, "UTF-8");
-                    OutputStream os = conn.getOutputStream();
-                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
-                    writer.write(data);
-                    writer.flush();
-                    writer.close();
-                    os.close();
-                    Log.i("postString=", data);
-                    conn.connect();
-
-                    InputStream is = conn.getInputStream();
-                    // Read the stream
-                    byte[] b = new byte[1024];
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    while ( is.read(b) != -1)
-                        baos.write(b);
-
-                    String response = new String(baos.toByteArray());
-                    Log.i("JSONResp=", response);
-                    JSONArray arr = new JSONArray(response);
-                    for (int i=0; i < arr.length(); i++) {
-                        loadContact(arr.getJSONObject(i));
-                        Log.v("data=",arr.getJSONObject(i).toString());
-                    }
-                    Log.i("response=", response);
-                    return response;
-
+                    queryData(conn);
                 }else {
-                    //設定圖片欄位相關屬性
-                    conn.setRequestProperty("Connection", "Keep-Alive");
-                    conn.setRequestProperty("Cache-Control", "no-cache");
-                    conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + this.boundary);
-                    conn.setRequestProperty("Charset", "UTF-8");
-                    //將圖片資訊組成串流
-                    DataOutputStream request = new DataOutputStream(conn.getOutputStream());
-                    if(this.attachmentFileName != null){
-                        File sourceFile = new File(attachmentFileName);
-                        FileInputStream fileInputStream = new FileInputStream(sourceFile);
-                        request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
-                        request.writeBytes("Content-Disposition: form-data; name=\"uploaded_file\";filename=\"" + this.attachmentFileName + "\"" + this.crlf);
-                        request.writeBytes(this.crlf);
-
-                        bytesAvailable = fileInputStream.available();
-
-                        bufferSize = Math.min(bytesAvailable, maxBufferSize);
-                        buffer = new byte[bufferSize];
-
-                        // read file and write it into form...
-                        bytesRead = fileInputStream.read(buffer, 0, bufferSize);
-
-                        while (bytesRead > 0) {
-
-                            request.write(buffer, 0, bufferSize);
-                            bytesAvailable = fileInputStream.available();
-                            bufferSize = Math.min(bytesAvailable, maxBufferSize);
-                            bytesRead = fileInputStream.read(buffer, 0, bufferSize);
-
-                        }
-                        request.write(buffer);
-                    }else{
-                        request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
-                        request.writeBytes("Content-Disposition: form-data; name=\"Picture\"" + "\"" + this.crlf);
-                        request.writeBytes(this.crlf);
-                        request.writeBytes(oldPic);
-                        request.writeBytes(this.crlf);
-
-                    }
-                    request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
-                    request.writeBytes("Content-Disposition: form-data; name=\"ContactID\"" + "\"" + this.crlf);
-                    request.writeBytes(this.crlf);
-                    Log.i("index=====>",String.valueOf(index));
-                    request.writeBytes(String.valueOf(index));
-                    request.writeBytes(this.crlf);
-
-                    request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
-                    request.writeBytes("Content-Disposition: form-data; name=\"Name\"" + "\"" + this.crlf);
-                    request.writeBytes(this.crlf);
-                    request.writeBytes(newName);
-                    request.writeBytes(this.crlf);
-                    request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
-                    request.writeBytes("Content-Disposition: form-data; name=\"Phone\"" + "\"" + this.crlf);
-                    request.writeBytes(this.crlf);
-                    request.writeBytes(newPhone);
-                    request.writeBytes(this.crlf);
-                    request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
-                    request.writeBytes("Content-Disposition: form-data; name=\"Email\"" + "\"" + this.crlf);
-                    request.writeBytes(this.crlf);
-                    request.writeBytes(newEmail);
-                    request.writeBytes(this.crlf);
-                    request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
-                    request.writeBytes("Content-Disposition: form-data; name=\"Birthday\"" + "\"" + this.crlf);
-                    request.writeBytes(this.crlf);
-                    request.writeBytes(newBirth);
-                    request.writeBytes(this.crlf);
-                    request.writeBytes(this.twoHyphens + this.boundary + this.twoHyphens + this.crlf);
-
-                    request.flush();
-                    request.close();
-
-                    Log.i("postString=", request.toString());
-                    conn.connect();
-
-                    InputStream is = conn.getInputStream();
-                    // Read the stream
-                    byte[] b = new byte[1024];
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    while (is.read(b) != -1)
-                        baos.write(b);
-
-                    String response = new String(baos.toByteArray());
-                    Log.i("response=", response);
-                    return response;
+                    add_updateData(conn);
                 }
 
             } catch (MalformedURLException e) {
@@ -342,18 +234,148 @@ public class EditActivity extends AppCompatActivity implements View.OnClickListe
                 e.printStackTrace();
             } catch (IOException e) {
                 e.printStackTrace();
+            }
+
+            return null;
+        }
+        private String add_updateData(HttpURLConnection conn){
+            int bytesRead, bytesAvailable, bufferSize;
+            byte[] buffer;
+            int maxBufferSize = 1 * 1024 * 1024;
+            try{
+                //設定圖片欄位相關屬性
+                conn.setRequestProperty("Connection", "Keep-Alive");
+                conn.setRequestProperty("Cache-Control", "no-cache");
+                conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + this.boundary);
+                conn.setRequestProperty("Charset", "UTF-8");
+                //將圖片資訊組成串流
+                DataOutputStream request = new DataOutputStream(conn.getOutputStream());
+                //圖片上傳函式
+                if(this.attachmentFileName != null){
+                    File sourceFile = new File(attachmentFileName);
+                    FileInputStream fileInputStream = new FileInputStream(sourceFile);
+                    request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
+                    request.writeBytes("Content-Disposition: form-data; name=\"uploaded_file\";filename=\"" + this.attachmentFileName + "\"" + this.crlf);
+                    request.writeBytes(this.crlf);
+
+                    bytesAvailable = fileInputStream.available();
+
+                    bufferSize = Math.min(bytesAvailable, maxBufferSize);
+                    buffer = new byte[bufferSize];
+
+                    // read file and write it into form...
+                    bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+
+                    while (bytesRead > 0) {
+
+                        request.write(buffer, 0, bufferSize);
+                        bytesAvailable = fileInputStream.available();
+                        bufferSize = Math.min(bytesAvailable, maxBufferSize);
+                        bytesRead = fileInputStream.read(buffer, 0, bufferSize);
+
+                    }
+                    request.write(buffer);
+                }else if(type.equals("edit")){
+                    request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
+                    request.writeBytes("Content-Disposition: form-data; name=\"Picture\"" + "\"" + this.crlf);
+                    request.writeBytes(this.crlf);
+                    request.writeBytes(oldPic);
+                    request.writeBytes(this.crlf);
+
+                } //結束判斷圖片函式
+                request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
+                request.writeBytes("Content-Disposition: form-data; name=\"ContactID\"" + "\"" + this.crlf);
+                request.writeBytes(this.crlf);
+                Log.i("index=====>",String.valueOf(index));
+                request.writeBytes(String.valueOf(index));
+                request.writeBytes(this.crlf);
+
+                request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
+                request.writeBytes("Content-Disposition: form-data; name=\"Name\"" + "\"" + this.crlf);
+                request.writeBytes(this.crlf);
+                request.writeBytes(newName);
+                request.writeBytes(this.crlf);
+                request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
+                request.writeBytes("Content-Disposition: form-data; name=\"Phone\"" + "\"" + this.crlf);
+                request.writeBytes(this.crlf);
+                request.writeBytes(newPhone);
+                request.writeBytes(this.crlf);
+                request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
+                request.writeBytes("Content-Disposition: form-data; name=\"Email\"" + "\"" + this.crlf);
+                request.writeBytes(this.crlf);
+                request.writeBytes(newEmail);
+                request.writeBytes(this.crlf);
+                request.writeBytes(this.twoHyphens + this.boundary + this.crlf);
+                request.writeBytes("Content-Disposition: form-data; name=\"Birthday\"" + "\"" + this.crlf);
+                request.writeBytes(this.crlf);
+                request.writeBytes(newBirth);
+                request.writeBytes(this.crlf);
+                request.writeBytes(this.twoHyphens + this.boundary + this.twoHyphens + this.crlf);
+
+                request.flush();
+                request.close();
+
+                Log.i("postString=", request.toString());
+                conn.connect();
+
+                InputStream is = conn.getInputStream();
+                // Read the stream
+                byte[] b = new byte[1024];
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                while (is.read(b) != -1)
+                    baos.write(b);
+
+                String response = new String(baos.toByteArray());
+                Log.i("response=", response);
+                return response;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+        private String queryData(HttpURLConnection conn){
+            //讀取單一筆資料
+            try {
+                String data = "Name=" + URLEncoder.encode(queryName, "UTF-8");
+                OutputStream os = null;
+                os = conn.getOutputStream();
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
+                writer.write(data);
+                writer.flush();
+                writer.close();
+                os.close();
+                Log.i("postString=", data);
+                conn.connect();
+
+                InputStream is = conn.getInputStream();
+                // Read the stream
+                byte[] b = new byte[1024];
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                while ( is.read(b) != -1)
+                    baos.write(b);
+
+                String response = new String(baos.toByteArray());
+                Log.i("JSONResp=", response);
+                JSONArray arr = new JSONArray(response);
+                for (int i=0; i < arr.length(); i++) {
+                    loadContact(arr.getJSONObject(i));
+                    Log.v("data=",arr.getJSONObject(i).toString());
+                }
+                Log.i("response=", response);
+                return response;
+            } catch (IOException e) {
+                e.printStackTrace();
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-
             return null;
         }
         private void loadContact(JSONObject obj) throws JSONException {
 
             if(obj.getString("Picture") != null) {
-                bitmap = LoadImage("http://hci.macroviz.com/demo/android/images/" + obj.getString("Picture").toString());
+                bitmap = LoadImage("https://mysqlcontact.000webhostapp.com/images/" + obj.getString("Picture").toString());
             }else{
-                bitmap = LoadImage("http://hci.macroviz.com/demo/android/images/supportmale.png");
+                bitmap = LoadImage("https://mysqlcontact.000webhostapp.com/images/supportmale.png");
             }
 
             Log.v("jsonObj=",obj.getString("Picture").toString());
@@ -363,7 +385,6 @@ public class EditActivity extends AppCompatActivity implements View.OnClickListe
             newPhone = obj.getString("Phone");
             newEmail = obj.getString("Email");
             newBirth = obj.getString("Birthday");
-
 
 
         }
@@ -394,8 +415,8 @@ public class EditActivity extends AppCompatActivity implements View.OnClickListe
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            dialog.setMessage("連線中...");
-           // dialog.show();
+//            dialog.setMessage("連線中...");
+//            dialog.show();
         }
         @Override
         protected void onPostExecute(String result) {
